@@ -2,10 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Cafe Test Site</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Cafe Test Website</title>
+    <!-- This line loads the required Supabase software into the browser -->
+    <script src="https://jsdelivr.net"></script>
 </head>
 <body>
     <h1>Welcome to Our Cafe!</h1>
-    <p>Testing free frontend domain with GitHub Pages.</p>
+    <h2>Today's Live Menu</h2>
+    <ul id="menu-list">Loading delicious items...</ul>
+
+    <script>
+        // 1. PASTE YOUR CORRECT KEYS HERE
+        const SUPABASE_URL = "https://wsuicmqnpyqwzjaxhhzs.supabase.co/rest/v1/"; 
+        const SUPABASE_ANON_KEY = "sb_publishable_NWi3NeJl1Xaj89ZNDjN6Qg_6IM4lV0M";
+
+        // 2. Initialize connection
+        const supabase = @supabase/supabase-js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 3. Fetch menu items from database
+        async function fetchMenu() {
+            const { data, error } = await supabase
+                .from('menu_items')
+                .select('name, description, price');
+
+            if (error) {
+                console.error("Error loading data:", error);
+                document.getElementById('menu-list').innerText = "Failed to load menu.";
+                return;
+            }
+
+            // 4. Render data on screen
+            const listContainer = document.getElementById('menu-list');
+            listContainer.innerHTML = ""; // Clear loader text
+            
+            data.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${item.name}</strong> - ₹${item.price}<br><em>${item.description}</em>`;
+                listContainer.appendChild(li);
+            });
+        }
+
+        fetchMenu();
+    </script>
 </body>
 </html>
