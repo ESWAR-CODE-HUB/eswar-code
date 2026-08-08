@@ -3,47 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Cafe Test Website</title>
-    <!-- This line loads the required Supabase software into the browser -->
+    <title>Cozy Bean Cafe - Test Portal</title>
+    <!-- Load Supabase Library -->
     <script src="https://jsdelivr.net"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #faf8f5; color: #333; }
+        .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h1 { color: #4a3728; text-align: center; }
+        h2 { color: #6f4e37; border-bottom: 2px solid #f0e6df; padding-bottom: 5px; }
+        button { background: #6f4e37; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #4a3728; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+    </style>
 </head>
 <body>
-    <h1>Welcome to Our Cafe!</h1>
-    <h2>Today's Live Menu</h2>
-    <ul id="menu-list">Loading delicious items...</ul>
+
+    <h1>☕ Cozy Bean Cafe</h1>
+
+    <!-- 1. BRANCH SELECTOR (Using Location Concept) -->
+    <div class="section">
+        <h2>1. Select Near Branch</h2>
+        <select id="branch-select">
+            <option value="">Loading branches...</option>
+        </select>
+        <button onclick="findNearestBranch()">📍 Find Closest Branch (Simulate GPS)</button>
+        <p id="location-status" style="font-size: 12px; color: #666;"></p>
+    </div>
+
+    <!-- 2. LIVE MENU & ORDERING -->
+    <div class="section">
+        <h2>2. Today's Menu & Order</h2>
+        <div id="menu-container">Loading fresh menu...</div>
+        <p><strong>Total Bill:</strong> ₹<span id="total-price">0.00</span></p>
+        <button onclick="placeOrder()">🛒 Place Test Order</button>
+    </div>
+
+    <!-- 3. TABLE BOOKINGS -->
+    <div class="section">
+        <h2>3. Book a Table</h2>
+        <form id="booking-form" onsubmit="handleBooking(event)">
+            <input type="text" id="book-name" placeholder="Your Name" required>
+            <input type="tel" id="book-phone" placeholder="Phone Number" required>
+            <input type="datetime-local" id="book-time" required>
+            <input type="number" id="book-guests" placeholder="Number of Guests" min="1" max="10" required>
+            <button type="submit">📅 Submit Reservation</button>
+        </form>
+    </div>
 
     <script>
-        // 1. PASTE YOUR CORRECT KEYS HERE
+        // CONFIGURATION: Paste your actual Supabase details here
         const SUPABASE_URL = "https://wsuicmqnpyqwzjaxhhzs.supabase.co/rest/v1/"; 
         const SUPABASE_ANON_KEY = "sb_publishable_NWi3NeJl1Xaj89ZNDjN6Qg_6IM4lV0M";
 
-        // 2. Initialize connection
         const supabase = @supabase/supabase-js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentMenu = [];
+        let orderQuantities = {};
 
-        // 3. Fetch menu items from database
-        async function fetchMenu() {
-            const { data, error } = await supabase
-                .from('menu_items')
-                .select('name, description, price');
+        // INITIALIZATION RUNNER
+        async function initSite() {
+            await fetchBranches();
+            await fetchMenu();
+        }
 
-            if (error) {
-                console.error("Error loading data:", error);
-                document.getElementById('menu-list').innerText = "Failed to load menu.";
-                return;
+        // FETCH BRANCHES FOR DROP-DOWN
+        async function fetchBranches() {
+            const { data, error } = await supabase.from('branches').select('id, name, latitude, longitude');
+            if (!error && data) {
+                const select = document.getElementById('branch-select');
+                select.innerHTML = data.map(b => `<option value="${b.id}" data-lat="${b.latitude}" data-lon="${b.longitude}">${b.name}</option>`).join('');
             }
+        }
 
-            // 4. Render data on screen
-            const listContainer = document.getElementById('menu-list');
-            listContainer.innerHTML = ""; // Clear loader text
+        // SIMULATE LOCATION ACCURACY (GPS POSITION FINDER)
+        function findNearestBranch() {
+            document.getElementById('location-status').innerText = "Getting your coordinates...";
             
-            data.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${item.name}</strong> - ₹${item.price}<br><em>${item.description}</em>`;
-                listContainer.appendChild(li);
+            // Native Browser GPS
+            navigator.geolocation.getCurrentPosition((position) => {
+                const userLat = position.coords.latitude;
+                const userLon = position.coords.longitude;
+                document.getElementById('location-status').innerText = `Your location: ${userLat.toFixed(4)}, ${userLon.toFixed(4)}`;
+                
+                // Simple math calculation to find the closest option in the dropdown list
+                let closestBranchId = "";
+                let shortestDistance = Infinity;
+                
+                const options = document.querySelectorAll('#branch-select option');
+                options.forEach(opt => {
+                    const bLat = parseFloat(opt.getAttribute('data-lat'));
+                    const bLon = parseFloat(opt.getAttribute('data-lon'));
+                    
+                    // Standard distance formula (Pythagoras)
+                    const dist = Math.sqrt(Math.pow(userLat - bLat, 2) + Math.pow(userLon - bLon, 2));
+                    if (dist < shortestDistance) {
+                        shortestDistance = dist;
+                        closestBranchId = opt.value;
+                    }
+                });
+                
+                if (closestBranchId) {
+                    document.getElementById('branch-select').value = closestBranchId;
+                    alert("Automatically selected the branch closest to you!");
+                }
+            }, (err) => {
+                document.getElementById('location-status').innerText = "Location access denied. Using default branch.";
             });
         }
 
-        fetchMenu();
+        // FETCH MENU ITEMS FROM DATABASE
+        async function fetchMenu() {
+            const { data, error } = await supabase.from('menu_items').select('id, name, description, price');
+            if (error) {
+                document.getElementById('menu-container').innerText = "Error pulling menu content.";
+                return;
+            }
+            currentMenu = data;
+            renderMenu();
+        }
+
+        // RENDER MENU WITH QUANTITY ADJUSTERS
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            if(currentMenu.length === 0) { container.innerText = "No menu items found."; return; }
+            
+            container.innerHTML = currentMenu.map(item => {
+                orderQuantities[item.id] = 0;
+                return `
+                    <div class="menu-item">
+                        <div>
+                            <strong>${item.name}</strong> - ₹${item.price}<br>
+                            <small style="color:#777">${item.description || ''}</small>
+                        </div>
+                        <div>
+                            <input type="number" min="0" value="0" style="width:50px; margin:0;" 
+                                   onchange="updateOrderTotal(${item.id}, this.value)">
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        // TRACK BILL CALCULATION
+        function updateOrderTotal(itemId, value) {
+            orderQuantities[itemId] = parseInt(value) || 0;
+            let total = 0;
+            currentMenu.forEach(item => {
+                total += (orderQuantities[item.id] * item.price);
+            });
+            document.getElementById('total-price').innerText = total.toFixed(2);
+        }
+
+        // SEND TABLE BOOKING TO SUPABASE
+        async function handleBooking(event) {
+            event.preventDefault();
+            const branchId = document.getElementById('branch-select').value;
+            
+            if(!branchId) { alert("Please select a branch first!"); return; }
+
+            const bookingData = {
+                branch_id: branchId,
+                customer_name: document.getElementById('book-name').value,
+                customer_phone: document.getElementById('book-phone').value,
+                booking_time: new Date(document.getElementById('book-time').value).toISOString(),
+                guest_count: parseInt(document.getElementById('book-guests').value)
+            };
+
+            const { error } = await supabase.from('bookings').insert([bookingData]);
+
+            if (error) {
+                alert("Booking failed: " + error.message);
+            } else {
+                alert("🎉 Reservation submitted successfully! Check your Supabase 'bookings' table.");
+                document.getElementById('booking-form').reset();
+            }
+        }
+
+        // PLACE PLACEHOLDER ORDER ALERT
+        function placeOrder() {
+            const total = document.getElementById('total-price').innerText;
+            if(parseFloat(total) === 0) { alert("Please select at least 1 item to buy!"); return; }
+            alert(`🛒 Checkout simulated! Order worth ₹${total} ready to process.`);
+        }
+
+        // Run on Page Load
+        initSite();
     </script>
 </body>
 </html>
