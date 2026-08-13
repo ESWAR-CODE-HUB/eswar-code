@@ -291,11 +291,10 @@
             l3.innerText = "Assigned Bus ID";
             g2.style.display = 'block';
             g3.style.display = 'block';
-        } else {
+        } else { // Drivers
             l1.innerText = "Driver Name";
-            l2.innerText = "Driver ID";
+            g2.style.display = 'none'; // Hides the ID input field completely for Drivers
             l3.innerText = "Assigned Bus ID";
-            g2.style.display = 'block';
             g3.style.display = 'block';
         }
     }
@@ -307,15 +306,19 @@
         let val3 = document.getElementById('inputField3').value.trim();
         let msg = document.getElementById('saveMsg');
 
-        if (!val1 || !val2 || !val3) {
+        // Validation: Requires val2 ONLY if the table is NOT 'drivers'
+        if (!val1 || !val3 || (table !== 'drivers' && !val2)) {
             msg.style.color = '#f87171';
-            msg.innerText = "Please fill out all fields!";
+            msg.innerText = "Please fill out all required fields!";
             return;
         }
 
-        let payload = { name: val1, roll_number: val2, assigned_bus_id: val3 };
+        // Set payload dynamically based on category
+        let payload;
         if (table === 'drivers') {
-            payload = { name: val1, roll_number: val2, assigned_bus_id: val3 }; // Keeps schema consistent across tables if required
+            payload = { name: val1, assigned_bus_id: val3 }; // No roll_number for drivers
+        } else {
+            payload = { name: val1, roll_number: val2, assigned_bus_id: val3 };
         }
 
         try {
@@ -381,14 +384,14 @@
                 return;
             }
 
-            // Search drivers
-            let resDriver = await fetch(`${SUPABASE_URL}/rest/v1/drivers?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
+            // Search drivers (Adjusted to not show ID if it doesn't exist)
+            let resDriver = await fetch(`${SUPABASE_URL}/rest/v1/drivers?name=ilike.*${query}*&select=*`, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             let dataDriver = await resDriver.json();
             if (dataDriver.length > 0) {
                 msg.style.color = '#4ade80';
-                msg.innerText = `[DRIVER] Name: ${dataDriver[0].name} | ID: ${dataDriver[0].roll_number} | Bus: ${dataDriver[0].assigned_bus_id}`;
+                msg.innerText = `[DRIVER] Name: ${dataDriver[0].name} | Bus: ${dataDriver[0].assigned_bus_id}`;
             } else {
                 msg.style.color = '#fbbf24';
                 msg.innerText = "Record not found in database.";
@@ -402,35 +405,54 @@
     async function loadRecentLogs() {
         let listEl = document.getElementById('recentList');
         try {
+            // Fetch from all three tables simultaneously
             let [resStud, resStaff, resDrive] = await Promise.all([
                 fetch(`${SUPABASE_URL}/rest/v1/students?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
                 fetch(`${SUPABASE_URL}/rest/v1/staffs?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
                 fetch(`${SUPABASE_URL}/rest/v1/drivers?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
             ]);
 
-            let students = await resStud.json();
-            let staffs = await resStaff.json();
-            let drivers = await resDrive.json();
+            // Helper to safely parse JSON and ignore errors (like missing columns)
+            async function safeParse(res, tableName) {
+                if (!res.ok) {
+                    let err = await res.text();
+                    console.error(`Error loading ${tableName}:`, err);
+                    return [];
+                }
+                return await res.json();
+            }
+
+            let students = await safeParse(resStud, 'students');
+            let staffs = await safeParse(resStaff, 'staffs');
+            let drivers = await safeParse(resDrive, 'drivers');
 
             listEl.innerHTML = '';
             let combined = [];
 
-            if(Array.isArray(students)) students.forEach(s => combined.push({type: 'STUDENT', name: s.name, bus: s.assigned_bus_id}));
-            if(Array.isArray(staffs)) staffs.forEach(st => combined.push({type: 'STAFF', name: st.name, bus: st.assigned_bus_id}));
-            if(Array.isArray(drivers)) drivers.forEach(d => combined.push({type: 'DRIVER', name: d.name, bus: d.assigned_bus_id}));
+            // Add records to the combined list (if they exist)
+            if(Array.isArray(students)) students.forEach(s => combined.push({type: 'STUDENT', name: s.name, bus: s.assigned_bus_id, time: s.created_at || 0}));
+            if(Array.isArray(staffs)) staffs.forEach(st => combined.push({type: 'STAFF', name: st.name, bus: st.assigned_bus_id, time: st.created_at || 0}));
+            if(Array.isArray(drivers)) drivers.forEach(d => combined.push({type: 'DRIVER', name: d.name, bus: d.assigned_bus_id, time: d.created_at || 0}));
 
-            if (combined.length === 0) {
-                listEl.innerHTML = '<li>No recent records found.</li>';
+            // Sort the combined list so the absolute newest records across all tables show up first
+            combined.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+            // Only keep the top 5 most recent across everything
+            let topRecent = combined.slice(0, 5);
+
+            if (topRecent.length === 0) {
+                listEl.innerHTML = '<li>No recent records found (or check console for DB errors).</li>';
                 return;
             }
 
-            combined.forEach(item => {
+            topRecent.forEach(item => {
                 let li = document.createElement('li');
                 li.innerText = `[${item.type}] ${item.name} (Bus: ${item.bus})`;
                 listEl.appendChild(li);
             });
         } catch (e) {
-            listEl.innerHTML = '<li>Error loading recent feed.</li>';
+            console.error("Network or script error:", e);
+            listEl.innerHTML = '<li>Error loading recent feed. Check console (F12).</li>';
         }
     }
 </script>
