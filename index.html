@@ -3,190 +3,437 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cozy Bean Cafe - Test Portal</title>
-    <!-- Load Supabase Library -->
-    <script src="https://jsdelivr.net"></script>
+    <title>SRM Transport - Admin Portal</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #faf8f5; color: #333; }
-        .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        h1 { color: #4a3728; text-align: center; }
-        h2 { color: #6f4e37; border-bottom: 2px solid #f0e6df; padding-bottom: 5px; }
-        button { background: #6f4e37; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        button:hover { background: #4a3728; }
-        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #f8fafc;
+            --accent-glow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .portal-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 650px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        h2, h3 {
+            text-align: center;
+            margin-top: 0;
+            letter-spacing: 1px;
+        }
+
+        .hidden { display: none !important; }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: #818cf8;
+            box-shadow: var(--accent-glow);
+        }
+
+        button {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--accent-glow);
+        }
+
+        .btn-logout {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .section-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        .msg {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            max-height: 140px;
+            overflow-y: auto;
+            margin: 0;
+        }
+
+        li {
+            background: rgba(15, 23, 42, 0.4);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            border-left: 3px solid #818cf8;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 15px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>☕ Cozy Bean Cafe</h1>
+<div class="portal-card">
 
-    <!-- 1. BRANCH SELECTOR (Using Location Concept) -->
-    <div class="section">
-        <h2>1. Select Near Branch</h2>
-        <select id="branch-select">
-            <option value="">Loading branches...</option>
-        </select>
-        <button onclick="findNearestBranch()">📍 Find Closest Branch (Simulate GPS)</button>
-        <p id="location-status" style="font-size: 12px; color: #666;"></p>
+    <!-- LOGIN SCREEN -->
+    <div id="loginSection">
+        <h2>Admin Portal Login</h2>
+        <p style="text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 25px;">Restricted Access: Authorized Admin Only</p>
+        
+        <div class="form-group">
+            <label for="adminEmail">Admin Email ID</label>
+            <input type="email" id="adminEmail" placeholder="Enter your email...">
+        </div>
+
+        <div class="form-group">
+            <label for="adminPass">Password</label>
+            <input type="password" id="adminPass" placeholder="••••••••">
+        </div>
+
+        <button onclick="handleLogin()">Authenticate Login</button>
+        <div id="loginMsg" class="msg" style="color: #f87171;"></div>
     </div>
 
-    <!-- 2. LIVE MENU & ORDERING -->
-    <div class="section">
-        <h2>2. Today's Menu & Order</h2>
-        <div id="menu-container">Loading fresh menu...</div>
-        <p><strong>Total Bill:</strong> ₹<span id="total-price">0.00</span></p>
-        <button onclick="placeOrder()">🛒 Place Test Order</button>
-    </div>
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboardSection" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Transport Control Hub</h2>
+            <span id="loggedUserEmail" style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 6px;"></span>
+        </div>
 
-    <!-- 3. TABLE BOOKINGS -->
-    <div class="section">
-        <h2>3. Book a Table</h2>
-        <form id="booking-form" onsubmit="handleBooking(event)">
-            <input type="text" id="book-name" placeholder="Your Name" required>
-            <input type="tel" id="book-phone" placeholder="Phone Number" required>
-            <input type="datetime-local" id="book-time" required>
-            <input type="number" id="book-guests" placeholder="Number of Guests" min="1" max="10" required>
-            <button type="submit">📅 Submit Reservation</button>
-        </form>
-    </div>
-
-    <script>
-        // CONFIGURATION: Paste your actual Supabase details here
-        const SUPABASE_URL = "https://wsuicmqnpyqwzjaxhhzs.supabase.co/rest/v1/"; 
-        const SUPABASE_ANON_KEY = "sb_publishable_NWi3NeJl1Xaj89ZNDjN6Qg_6IM4lV0M";
-
-        const supabase = @supabase/supabase-js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let currentMenu = [];
-        let orderQuantities = {};
-
-        // INITIALIZATION RUNNER
-        async function initSite() {
-            await fetchBranches();
-            await fetchMenu();
-        }
-
-        // FETCH BRANCHES FOR DROP-DOWN
-        async function fetchBranches() {
-            const { data, error } = await supabase.from('branches').select('id, name, latitude, longitude');
-            if (!error && data) {
-                const select = document.getElementById('branch-select');
-                select.innerHTML = data.map(b => `<option value="${b.id}" data-lat="${b.latitude}" data-lon="${b.longitude}">${b.name}</option>`).join('');
-            }
-        }
-
-        // SIMULATE LOCATION ACCURACY (GPS POSITION FINDER)
-        function findNearestBranch() {
-            document.getElementById('location-status').innerText = "Getting your coordinates...";
+        <!-- 1. REGISTRATION SECTION -->
+        <div class="section-box">
+            <h3>Add Data to Database</h3>
             
-            // Native Browser GPS
-            navigator.geolocation.getCurrentPosition((position) => {
-                const userLat = position.coords.latitude;
-                const userLon = position.coords.longitude;
-                document.getElementById('location-status').innerText = `Your location: ${userLat.toFixed(4)}, ${userLon.toFixed(4)}`;
-                
-                // Simple math calculation to find the closest option in the dropdown list
-                let closestBranchId = "";
-                let shortestDistance = Infinity;
-                
-                const options = document.querySelectorAll('#branch-select option');
-                options.forEach(opt => {
-                    const bLat = parseFloat(opt.getAttribute('data-lat'));
-                    const bLon = parseFloat(opt.getAttribute('data-lon'));
-                    
-                    // Standard distance formula (Pythagoras)
-                    const dist = Math.sqrt(Math.pow(userLat - bLat, 2) + Math.pow(userLon - bLon, 2));
-                    if (dist < shortestDistance) {
-                        shortestDistance = dist;
-                        closestBranchId = opt.value;
-                    }
-                });
-                
-                if (closestBranchId) {
-                    document.getElementById('branch-select').value = closestBranchId;
-                    alert("Automatically selected the branch closest to you!");
-                }
-            }, (err) => {
-                document.getElementById('location-status').innerText = "Location access denied. Using default branch.";
-            });
+            <div class="form-group">
+                <label for="targetTable">Select Category</label>
+                <select id="targetTable" onchange="switchFormFields()">
+                    <option value="students">Student</option>
+                    <option value="staffs">Staff</option>
+                    <option value="drivers">Driver</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="labelField1" for="inputField1">Name</label>
+                <input type="text" id="inputField1" placeholder="Enter name...">
+            </div>
+
+            <div class="form-group" id="groupField2">
+                <label id="labelField2" for="inputField2">Roll Number / ID</label>
+                <input type="text" id="inputField2" placeholder="Enter roll number / ID...">
+            </div>
+
+            <div class="form-group" id="groupField3">
+                <label id="labelField3" for="inputField3">Assigned Bus ID</label>
+                <input type="text" id="inputField3" placeholder="e.g. v1">
+            </div>
+
+            <button onclick="submitRecord()">Save Record</button>
+            <div id="saveMsg" class="msg"></div>
+        </div>
+
+        <!-- 2. SEARCH RECORD SECTION -->
+        <div class="section-box">
+            <h3>Search Registration Status</h3>
+            <div class="flex-row">
+                <input type="text" id="searchQuery" placeholder="Enter Roll Number, ID, or Name...">
+                <button style="width: 140px;" onclick="searchDatabase()">Search</button>
+            </div>
+            <div id="searchMsg" class="msg"></div>
+        </div>
+
+        <!-- 3. RECENT LIST SECTION -->
+        <div class="section-box" style="margin-bottom: 0;">
+            <h3>Recent Registrations</h3>
+            <ul id="recentList">
+                <li>Loading recent records...</li>
+            </ul>
+        </div>
+
+        <button class="btn-logout" onclick="logoutAdmin()">Logout Session</button>
+    </div>
+
+</div>
+
+<script>
+    const SUPABASE_URL = "https://wsuicmqnpyqwzjaxhhzs.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdWljbXFucHlxd3pqYXhoaHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMDQwMzksImV4cCI6MjEwMTc4MDAzOX0.zAaBH1vEQ_4KlVDfDOnc1dvgPXPrFV46GSDv3Gn1Qxw";
+
+    // REPLACE THIS WITH YOUR ACTUAL EMAIL ADDRESS THAT ONLY YOU SHOULD USE TO LOGIN
+    const ADMIN_EMAIL = "venkatbhaigaming@gmail.com"; 
+
+    window.onload = function() {
+        let activeUser = sessionStorage.getItem("admin_email");
+        if (activeUser === ADMIN_EMAIL) {
+            showDashboard(activeUser);
+        }
+    };
+
+    window.addEventListener("unload", function() {
+        sessionStorage.removeItem("admin_email");
+    });
+
+    function handleLogin() {
+        let email = document.getElementById('adminEmail').value.trim().toLowerCase();
+        let pass = document.getElementById('adminPass').value.trim();
+        let msg = document.getElementById('loginMsg');
+
+        // Strictly matches your specific admin email address
+        if (email === ADMIN_EMAIL.toLowerCase() && pass.length >= 6) {
+            sessionStorage.setItem("admin_email", email);
+            showDashboard(email);
+        } else {
+            msg.innerText = "Access Denied: Only the authorized admin email can log in.";
+        }
+    }
+
+    function showDashboard(email) {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('loggedUserEmail').innerText = email;
+        loadRecentLogs();
+    }
+
+    function logoutAdmin() {
+        sessionStorage.removeItem("admin_email");
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('loginSection').classList.remove('hidden');
+        document.getElementById('adminEmail').value = '';
+        document.getElementById('adminPass').value = '';
+        document.getElementById('loginMsg').innerText = '';
+    }
+
+    function switchFormFields() {
+        let table = document.getElementById('targetTable').value;
+        let l1 = document.getElementById('labelField1');
+        let l2 = document.getElementById('labelField2');
+        let l3 = document.getElementById('labelField3');
+        let g2 = document.getElementById('groupField2');
+        let g3 = document.getElementById('groupField3');
+
+        if (table === 'students') {
+            l1.innerText = "Student Name";
+            l2.innerText = "Roll Number";
+            l3.innerText = "Assigned Bus ID";
+            g2.style.display = 'block';
+            g3.style.display = 'block';
+        } else if (table === 'staffs') {
+            l1.innerText = "Staff Name";
+            l2.innerText = "Roll Number / ID";
+            l3.innerText = "Assigned Bus ID";
+            g2.style.display = 'block';
+            g3.style.display = 'block';
+        } else {
+            l1.innerText = "Driver Name";
+            l2.innerText = "Driver ID";
+            l3.innerText = "Assigned Bus ID";
+            g2.style.display = 'block';
+            g3.style.display = 'block';
+        }
+    }
+
+    async function submitRecord() {
+        let table = document.getElementById('targetTable').value;
+        let val1 = document.getElementById('inputField1').value.trim();
+        let val2 = document.getElementById('inputField2').value.trim();
+        let val3 = document.getElementById('inputField3').value.trim();
+        let msg = document.getElementById('saveMsg');
+
+        if (!val1 || !val2 || !val3) {
+            msg.style.color = '#f87171';
+            msg.innerText = "Please fill out all fields!";
+            return;
         }
 
-        // FETCH MENU ITEMS FROM DATABASE
-        async function fetchMenu() {
-            const { data, error } = await supabase.from('menu_items').select('id, name, description, price');
-            if (error) {
-                document.getElementById('menu-container').innerText = "Error pulling menu content.";
+        let payload = { name: val1, roll_number: val2, assigned_bus_id: val3 };
+        if (table === 'drivers') {
+            payload = { name: val1, roll_number: val2, assigned_bus_id: val3 }; // Keeps schema consistent across tables if required
+        }
+
+        try {
+            let res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                msg.style.color = '#4ade80';
+                msg.innerText = "Record successfully saved to database!";
+                document.getElementById('inputField1').value = '';
+                document.getElementById('inputField2').value = '';
+                document.getElementById('inputField3').value = '';
+                loadRecentLogs();
+            } else {
+                let errText = await res.text();
+                msg.style.color = '#f87171';
+                msg.innerText = "Database error inserting record.";
+                console.error(errText);
+            }
+        } catch (e) {
+            msg.style.color = '#f87171';
+            msg.innerText = "Network connection failed.";
+        }
+    }
+
+    async function searchDatabase() {
+        let query = document.getElementById('searchQuery').value.trim();
+        let msg = document.getElementById('searchMsg');
+        if (!query) {
+            msg.style.color = '#f87171';
+            msg.innerText = "Enter an ID or name to search.";
+            return;
+        }
+
+        try {
+            // Search students
+            let resStud = await fetch(`${SUPABASE_URL}/rest/v1/students?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            let dataStud = await resStud.json();
+            if (dataStud.length > 0) {
+                msg.style.color = '#4ade80';
+                msg.innerText = `[STUDENT] Name: ${dataStud[0].name} | ID: ${dataStud[0].roll_number} | Bus: ${dataStud[0].assigned_bus_id}`;
                 return;
             }
-            currentMenu = data;
-            renderMenu();
-        }
 
-        // RENDER MENU WITH QUANTITY ADJUSTERS
-        function renderMenu() {
-            const container = document.getElementById('menu-container');
-            if(currentMenu.length === 0) { container.innerText = "No menu items found."; return; }
-            
-            container.innerHTML = currentMenu.map(item => {
-                orderQuantities[item.id] = 0;
-                return `
-                    <div class="menu-item">
-                        <div>
-                            <strong>${item.name}</strong> - ₹${item.price}<br>
-                            <small style="color:#777">${item.description || ''}</small>
-                        </div>
-                        <div>
-                            <input type="number" min="0" value="0" style="width:50px; margin:0;" 
-                                   onchange="updateOrderTotal(${item.id}, this.value)">
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-
-        // TRACK BILL CALCULATION
-        function updateOrderTotal(itemId, value) {
-            orderQuantities[itemId] = parseInt(value) || 0;
-            let total = 0;
-            currentMenu.forEach(item => {
-                total += (orderQuantities[item.id] * item.price);
+            // Search staffs
+            let resStaff = await fetch(`${SUPABASE_URL}/rest/v1/staffs?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
-            document.getElementById('total-price').innerText = total.toFixed(2);
-        }
-
-        // SEND TABLE BOOKING TO SUPABASE
-        async function handleBooking(event) {
-            event.preventDefault();
-            const branchId = document.getElementById('branch-select').value;
-            
-            if(!branchId) { alert("Please select a branch first!"); return; }
-
-            const bookingData = {
-                branch_id: branchId,
-                customer_name: document.getElementById('book-name').value,
-                customer_phone: document.getElementById('book-phone').value,
-                booking_time: new Date(document.getElementById('book-time').value).toISOString(),
-                guest_count: parseInt(document.getElementById('book-guests').value)
-            };
-
-            const { error } = await supabase.from('bookings').insert([bookingData]);
-
-            if (error) {
-                alert("Booking failed: " + error.message);
-            } else {
-                alert("🎉 Reservation submitted successfully! Check your Supabase 'bookings' table.");
-                document.getElementById('booking-form').reset();
+            let dataStaff = await resStaff.json();
+            if (dataStaff.length > 0) {
+                msg.style.color = '#4ade80';
+                msg.innerText = `[STAFF] Name: ${dataStaff[0].name} | ID: ${dataStaff[0].roll_number} | Bus: ${dataStaff[0].assigned_bus_id}`;
+                return;
             }
-        }
 
-        // PLACE PLACEHOLDER ORDER ALERT
-        function placeOrder() {
-            const total = document.getElementById('total-price').innerText;
-            if(parseFloat(total) === 0) { alert("Please select at least 1 item to buy!"); return; }
-            alert(`🛒 Checkout simulated! Order worth ₹${total} ready to process.`);
+            // Search drivers
+            let resDriver = await fetch(`${SUPABASE_URL}/rest/v1/drivers?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            let dataDriver = await resDriver.json();
+            if (dataDriver.length > 0) {
+                msg.style.color = '#4ade80';
+                msg.innerText = `[DRIVER] Name: ${dataDriver[0].name} | ID: ${dataDriver[0].roll_number} | Bus: ${dataDriver[0].assigned_bus_id}`;
+            } else {
+                msg.style.color = '#fbbf24';
+                msg.innerText = "Record not found in database.";
+            }
+        } catch (e) {
+            msg.style.color = '#f87171';
+            msg.innerText = "Error executing search query.";
         }
+    }
 
-        // Run on Page Load
-        initSite();
-    </script>
+    async function loadRecentLogs() {
+        let listEl = document.getElementById('recentList');
+        try {
+            let [resStud, resStaff, resDrive] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/students?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
+                fetch(`${SUPABASE_URL}/rest/v1/staffs?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
+                fetch(`${SUPABASE_URL}/rest/v1/drivers?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
+            ]);
+
+            let students = await resStud.json();
+            let staffs = await resStaff.json();
+            let drivers = await resDrive.json();
+
+            listEl.innerHTML = '';
+            let combined = [];
+
+            if(Array.isArray(students)) students.forEach(s => combined.push({type: 'STUDENT', name: s.name, bus: s.assigned_bus_id}));
+            if(Array.isArray(staffs)) staffs.forEach(st => combined.push({type: 'STAFF', name: st.name, bus: st.assigned_bus_id}));
+            if(Array.isArray(drivers)) drivers.forEach(d => combined.push({type: 'DRIVER', name: d.name, bus: d.assigned_bus_id}));
+
+            if (combined.length === 0) {
+                listEl.innerHTML = '<li>No recent records found.</li>';
+                return;
+            }
+
+            combined.forEach(item => {
+                let li = document.createElement('li');
+                li.innerText = `[${item.type}] ${item.name} (Bus: ${item.bus})`;
+                listEl.appendChild(li);
+            });
+        } catch (e) {
+            listEl.innerHTML = '<li>Error loading recent feed.</li>';
+        }
+    }
+</script>
+
 </body>
 </html>
