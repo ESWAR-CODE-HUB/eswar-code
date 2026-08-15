@@ -168,9 +168,9 @@
             <span id="loggedUserEmail" style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 6px;"></span>
         </div>
 
-        <!-- 1. REGISTRATION SECTION -->
+        <!-- 1. REGISTRATION & MANAGEMENT SECTION -->
         <div class="section-box">
-            <h3>Add Data to Database</h3>
+            <h3>Publish Data to App Database</h3>
             
             <div class="form-group">
                 <label for="targetTable">Select Category</label>
@@ -178,41 +178,44 @@
                     <option value="students">Student</option>
                     <option value="staffs">Staff</option>
                     <option value="drivers">Driver</option>
+                    <option value="route_stops">Route Stops</option>
+                    <option value="notifications">Admin Notifications</option>
+                    <option value="quick_links">Campus Quick Links</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label id="labelField1" for="inputField1">Name</label>
-                <input type="text" id="inputField1" placeholder="Enter name...">
+                <input type="text" id="inputField1" placeholder="Enter details...">
             </div>
 
             <div class="form-group" id="groupField2">
-                <label id="labelField2" for="inputField2">Roll Number / ID</label>
-                <input type="text" id="inputField2" placeholder="Enter roll number / ID...">
+                <label id="labelField2" for="inputField2">Roll Number / ID / Bus ID</label>
+                <input type="text" id="inputField2" placeholder="Enter secondary value...">
             </div>
 
             <div class="form-group" id="groupField3">
                 <label id="labelField3" for="inputField3">Assigned Bus ID</label>
-                <input type="text" id="inputField3" placeholder="e.g. v1">
+                <input type="text" id="inputField3" placeholder="e.g. v20">
             </div>
 
-            <button onclick="submitRecord()">Save Record</button>
+            <button onclick="submitRecord()">Save to Database</button>
             <div id="saveMsg" class="msg"></div>
         </div>
 
         <!-- 2. SEARCH RECORD SECTION -->
         <div class="section-box">
-            <h3>Search Registration Status</h3>
+            <h3>Search Database</h3>
             <div class="flex-row">
-                <input type="text" id="searchQuery" placeholder="Enter Roll Number, ID, or Name...">
+                <input type="text" id="searchQuery" placeholder="Enter keyword or ID...">
                 <button style="width: 140px;" onclick="searchDatabase()">Search</button>
             </div>
             <div id="searchMsg" class="msg"></div>
         </div>
 
-        <!-- 3. RECENT LIST SECTION -->
+        <!-- 3. RECENT LOGS SECTION -->
         <div class="section-box" style="margin-bottom: 0;">
-            <h3>Recent Registrations</h3>
+            <h3>Recent System Activity</h3>
             <ul id="recentList">
                 <li>Loading recent records...</li>
             </ul>
@@ -227,7 +230,6 @@
     const SUPABASE_URL = "https://wsuicmqnpyqwzjaxhhzs.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdWljbXFucHlxd3pqYXhoaHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMDQwMzksImV4cCI6MjEwMTc4MDAzOX0.zAaBH1vEQ_4KlVDfDOnc1dvgPXPrFV46GSDv3Gn1Qxw";
 
-    // REPLACE THIS WITH YOUR ACTUAL EMAIL ADDRESS THAT ONLY YOU SHOULD USE TO LOGIN
     const ADMIN_EMAIL = "venkatbhaigaming@gmail.com"; 
 
     window.onload = function() {
@@ -246,7 +248,6 @@
         let pass = document.getElementById('adminPass').value.trim();
         let msg = document.getElementById('loginMsg');
 
-        // Strictly matches your specific admin email address
         if (email === ADMIN_EMAIL.toLowerCase() && pass.length >= 6) {
             sessionStorage.setItem("admin_email", email);
             showDashboard(email);
@@ -291,11 +292,25 @@
             l3.innerText = "Assigned Bus ID";
             g2.style.display = 'block';
             g3.style.display = 'block';
-        } else { // Drivers
+        } else if (table === 'drivers') {
             l1.innerText = "Driver Name";
-            g2.style.display = 'none'; // Hides the ID input field completely for Drivers
+            g2.style.display = 'none';
             l3.innerText = "Assigned Bus ID";
             g3.style.display = 'block';
+        } else if (table === 'route_stops') {
+            l1.innerText = "Stop Description (e.g. Stop 1: Campus Main Gate)";
+            l2.innerText = "Bus ID (e.g. v20)";
+            g2.style.display = 'block';
+            g3.style.display = 'none';
+        } else if (table === 'notifications') {
+            l1.innerText = "Admin Announcement Message";
+            g2.style.display = 'none';
+            g3.style.display = 'none';
+        } else if (table === 'quick_links') {
+            l1.innerText = "Portal Title (e.g. SRM-AP Portal)";
+            l2.innerText = "Destination URL (https://...)";
+            g2.style.display = 'block';
+            g3.style.display = 'none';
         }
     }
 
@@ -306,17 +321,21 @@
         let val3 = document.getElementById('inputField3').value.trim();
         let msg = document.getElementById('saveMsg');
 
-        // Validation: Requires val2 ONLY if the table is NOT 'drivers'
-        if (!val1 || !val3 || (table !== 'drivers' && !val2)) {
+        if (!val1 || (table === 'students' && (!val2 || !val3)) || (table === 'staffs' && (!val2 || !val3)) || (table === 'drivers' && !val3) || (table === 'route_stops' && !val2) || (table === 'quick_links' && !val2)) {
             msg.style.color = '#f87171';
             msg.innerText = "Please fill out all required fields!";
             return;
         }
 
-        // Set payload dynamically based on category
         let payload;
         if (table === 'drivers') {
-            payload = { name: val1, assigned_bus_id: val3 }; // No roll_number for drivers
+            payload = { name: val1, assigned_bus_id: val3 };
+        } else if (table === 'route_stops') {
+            payload = { stop_name: val1, bus_id: val2 };
+        } else if (table === 'notifications') {
+            payload = { message: val1 };
+        } else if (table === 'quick_links') {
+            payload = { title: val1, url: val2 };
         } else {
             payload = { name: val1, roll_number: val2, assigned_bus_id: val3 };
         }
@@ -335,7 +354,7 @@
 
             if (res.ok) {
                 msg.style.color = '#4ade80';
-                msg.innerText = "Record successfully saved to database!";
+                msg.innerText = "Record successfully saved to Supabase!";
                 document.getElementById('inputField1').value = '';
                 document.getElementById('inputField2').value = '';
                 document.getElementById('inputField3').value = '';
@@ -357,45 +376,22 @@
         let msg = document.getElementById('searchMsg');
         if (!query) {
             msg.style.color = '#f87171';
-            msg.innerText = "Enter an ID or name to search.";
+            msg.innerText = "Enter a keyword to search.";
             return;
         }
 
         try {
-            // Search students
-            let resStud = await fetch(`${SUPABASE_URL}/rest/v1/students?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
+            let res = await fetch(`${SUPABASE_URL}/rest/v1/students?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
-            let dataStud = await resStud.json();
-            if (dataStud.length > 0) {
+            let data = await res.json();
+            if (data.length > 0) {
                 msg.style.color = '#4ade80';
-                msg.innerText = `[STUDENT] Name: ${dataStud[0].name} | ID: ${dataStud[0].roll_number} | Bus: ${dataStud[0].assigned_bus_id}`;
+                msg.innerText = `[STUDENT] Name: ${data[0].name} | Bus: ${data[0].assigned_bus_id}`;
                 return;
             }
-
-            // Search staffs
-            let resStaff = await fetch(`${SUPABASE_URL}/rest/v1/staffs?or=(roll_number.eq.${query},name.ilike.*${query}*)&select=*`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            let dataStaff = await resStaff.json();
-            if (dataStaff.length > 0) {
-                msg.style.color = '#4ade80';
-                msg.innerText = `[STAFF] Name: ${dataStaff[0].name} | ID: ${dataStaff[0].roll_number} | Bus: ${dataStaff[0].assigned_bus_id}`;
-                return;
-            }
-
-            // Search drivers (Adjusted to not show ID if it doesn't exist)
-            let resDriver = await fetch(`${SUPABASE_URL}/rest/v1/drivers?name=ilike.*${query}*&select=*`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            let dataDriver = await resDriver.json();
-            if (dataDriver.length > 0) {
-                msg.style.color = '#4ade80';
-                msg.innerText = `[DRIVER] Name: ${dataDriver[0].name} | Bus: ${dataDriver[0].assigned_bus_id}`;
-            } else {
-                msg.style.color = '#fbbf24';
-                msg.innerText = "Record not found in database.";
-            }
+            msg.style.color = '#fbbf24';
+            msg.innerText = "Query processed. Check table records.";
         } catch (e) {
             msg.style.color = '#f87171';
             msg.innerText = "Error executing search query.";
@@ -405,54 +401,32 @@
     async function loadRecentLogs() {
         let listEl = document.getElementById('recentList');
         try {
-            // Fetch from all three tables simultaneously
-            let [resStud, resStaff, resDrive] = await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/students?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
-                fetch(`${SUPABASE_URL}/rest/v1/staffs?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
-                fetch(`${SUPABASE_URL}/rest/v1/drivers?select=*&order=created_at.desc&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
+            let [resNotes, resStops] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/notifications?select=*&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
+                fetch(`${SUPABASE_URL}/rest/v1/route_stops?select=*&limit=3`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
             ]);
 
-            // Helper to safely parse JSON and ignore errors (like missing columns)
-            async function safeParse(res, tableName) {
-                if (!res.ok) {
-                    let err = await res.text();
-                    console.error(`Error loading ${tableName}:`, err);
-                    return [];
-                }
-                return await res.json();
-            }
-
-            let students = await safeParse(resStud, 'students');
-            let staffs = await safeParse(resStaff, 'staffs');
-            let drivers = await safeParse(resDrive, 'drivers');
+            let notes = resNotes.ok ? await resNotes.json() : [];
+            let stops = resStops.ok ? await resStops.json() : [];
 
             listEl.innerHTML = '';
             let combined = [];
 
-            // Add records to the combined list (if they exist)
-            if(Array.isArray(students)) students.forEach(s => combined.push({type: 'STUDENT', name: s.name, bus: s.assigned_bus_id, time: s.created_at || 0}));
-            if(Array.isArray(staffs)) staffs.forEach(st => combined.push({type: 'STAFF', name: st.name, bus: st.assigned_bus_id, time: st.created_at || 0}));
-            if(Array.isArray(drivers)) drivers.forEach(d => combined.push({type: 'DRIVER', name: d.name, bus: d.assigned_bus_id, time: d.created_at || 0}));
+            if(Array.isArray(notes)) notes.forEach(n => combined.push({type: 'NOTIFICATION', text: n.message}));
+            if(Array.isArray(stops)) stops.forEach(s => combined.push({type: 'STOP', text: `${s.bus_id}: ${s.stop_name}`}));
 
-            // Sort the combined list so the absolute newest records across all tables show up first
-            combined.sort((a, b) => new Date(b.time) - new Date(a.time));
-
-            // Only keep the top 5 most recent across everything
-            let topRecent = combined.slice(0, 5);
-
-            if (topRecent.length === 0) {
-                listEl.innerHTML = '<li>No recent records found (or check console for DB errors).</li>';
+            if (combined.length === 0) {
+                listEl.innerHTML = '<li>No recent dynamic updates found.</li>';
                 return;
             }
 
-            topRecent.forEach(item => {
+            combined.slice(0, 5).forEach(item => {
                 let li = document.createElement('li');
-                li.innerText = `[${item.type}] ${item.name} (Bus: ${item.bus})`;
+                li.innerText = `[${item.type}] ${item.text}`;
                 listEl.appendChild(li);
             });
         } catch (e) {
-            console.error("Network or script error:", e);
-            listEl.innerHTML = '<li>Error loading recent feed. Check console (F12).</li>';
+            listEl.innerHTML = '<li>Error loading feed.</li>';
         }
     }
 </script>
