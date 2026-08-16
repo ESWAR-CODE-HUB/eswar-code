@@ -11,6 +11,7 @@
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-color: #f8fafc;
             --accent-glow: 0 0 20px rgba(99, 102, 241, 0.4);
+            --danger-glow: 0 0 20px rgba(239, 68, 68, 0.5);
         }
 
         body {
@@ -33,7 +34,7 @@
             border-radius: 16px;
             padding: 40px;
             width: 100%;
-            max-width: 650px;
+            max-width: 680px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
@@ -108,6 +109,11 @@
             margin-bottom: 25px;
         }
 
+        .sos-box {
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
         .msg {
             margin-top: 12px;
             text-align: center;
@@ -118,18 +124,39 @@
         ul {
             list-style: none;
             padding: 0;
-            max-height: 140px;
+            max-height: 180px;
             overflow-y: auto;
             margin: 0;
         }
 
         li {
             background: rgba(15, 23, 42, 0.4);
-            padding: 8px 12px;
+            padding: 10px 12px;
             border-radius: 6px;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             font-size: 13px;
             border-left: 3px solid #818cf8;
+        }
+
+        li.sos-item {
+            border-left: 4px solid #ef4444;
+            background: rgba(239, 68, 68, 0.12);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-sm-resolve {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            width: auto;
+            box-shadow: none;
         }
 
         .flex-row {
@@ -168,13 +195,25 @@
             <span id="loggedUserEmail" style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 6px;"></span>
         </div>
 
+        <!-- 0. LIVE EMERGENCY & SOS FEED -->
+        <div class="section-box sos-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #f87171;">🚨 Live Driver SOS & Breakdown Alerts</h3>
+                <button onclick="loadEmergencyAlerts()" style="width: auto; padding: 4px 10px; font-size: 11px; background: rgba(255,255,255,0.1);">Refresh</button>
+            </div>
+            <ul id="sosAlertsList">
+                <li>Listening for emergency alerts...</li>
+            </ul>
+        </div>
+
         <!-- 1. REGISTRATION & MANAGEMENT SECTION -->
         <div class="section-box">
-            <h3>Publish Data to App Database</h3>
+            <h3>Publish / Update Database</h3>
             
             <div class="form-group">
                 <label for="targetTable">Select Category</label>
                 <select id="targetTable" onchange="switchFormFields()">
+                    <option value="transport_department">Transport Dept / SOS Contacts</option>
                     <option value="students">Student</option>
                     <option value="staffs">Staff</option>
                     <option value="drivers">Driver</option>
@@ -185,18 +224,18 @@
             </div>
 
             <div class="form-group">
-                <label id="labelField1" for="inputField1">Name</label>
-                <input type="text" id="inputField1" placeholder="Enter details...">
+                <label id="labelField1" for="inputField1">Department Role (e.g. Transport Control Room / Garage Head)</label>
+                <input type="text" id="inputField1" placeholder="Enter role or office name...">
             </div>
 
             <div class="form-group" id="groupField2">
-                <label id="labelField2" for="inputField2">Roll Number / ID / Bus ID</label>
-                <input type="text" id="inputField2" placeholder="Enter secondary value...">
+                <label id="labelField2" for="inputField2">Emergency Contact Phone Number</label>
+                <input type="text" id="inputField2" placeholder="e.g. 0863-2344444 or +91 9876543210">
             </div>
 
             <div class="form-group" id="groupField3">
-                <label id="labelField3" for="inputField3">Assigned Bus ID</label>
-                <input type="text" id="inputField3" placeholder="e.g. v20">
+                <label id="labelField3" for="inputField3">Contact Person Name / Notes</label>
+                <input type="text" id="inputField3" placeholder="e.g. Duty Officer / Chief Mechanic">
             </div>
 
             <button onclick="submitRecord()">Save to Database</button>
@@ -207,7 +246,7 @@
         <div class="section-box">
             <h3>Search Database</h3>
             <div class="flex-row">
-                <input type="text" id="searchQuery" placeholder="Enter keyword or ID...">
+                <input type="text" id="searchQuery" placeholder="Enter student roll number, driver name, or keyword...">
                 <button style="width: 140px;" onclick="searchDatabase()">Search</button>
             </div>
             <div id="searchMsg" class="msg"></div>
@@ -232,15 +271,19 @@
 
     const ADMIN_EMAIL = "venkatbhaigaming@gmail.com"; 
 
+    let sosPollingInterval = null;
+
     window.onload = function() {
         let activeUser = sessionStorage.getItem("admin_email");
         if (activeUser === ADMIN_EMAIL) {
             showDashboard(activeUser);
         }
+        switchFormFields();
     };
 
     window.addEventListener("unload", function() {
         sessionStorage.removeItem("admin_email");
+        if (sosPollingInterval) clearInterval(sosPollingInterval);
     });
 
     function handleLogin() {
@@ -261,10 +304,17 @@
         document.getElementById('dashboardSection').classList.remove('hidden');
         document.getElementById('loggedUserEmail').innerText = email;
         loadRecentLogs();
+        loadEmergencyAlerts();
+
+        // Auto-poll emergency alerts every 10 seconds
+        if (!sosPollingInterval) {
+            sosPollingInterval = setInterval(loadEmergencyAlerts, 10000);
+        }
     }
 
     function logoutAdmin() {
         sessionStorage.removeItem("admin_email");
+        if (sosPollingInterval) clearInterval(sosPollingInterval);
         document.getElementById('dashboardSection').classList.add('hidden');
         document.getElementById('loginSection').classList.remove('hidden');
         document.getElementById('adminEmail').value = '';
@@ -280,7 +330,13 @@
         let g2 = document.getElementById('groupField2');
         let g3 = document.getElementById('groupField3');
 
-        if (table === 'students') {
+        if (table === 'transport_department') {
+            l1.innerText = "Department Role / Office (e.g. Transport Control Room)";
+            l2.innerText = "Emergency Phone Number (e.g. 0863-2344444)";
+            l3.innerText = "Contact Person Name (e.g. Duty Officer)";
+            g2.style.display = 'block';
+            g3.style.display = 'block';
+        } else if (table === 'students') {
             l1.innerText = "Student Name";
             l2.innerText = "Roll Number";
             l3.innerText = "Assigned Bus ID";
@@ -294,8 +350,9 @@
             g3.style.display = 'block';
         } else if (table === 'drivers') {
             l1.innerText = "Driver Name";
-            g2.style.display = 'none';
-            l3.innerText = "Assigned Bus ID";
+            l2.innerText = "Login PIN (e.g. 2026)";
+            l3.innerText = "Assigned Bus ID (e.g. v20)";
+            g2.style.display = 'block';
             g3.style.display = 'block';
         } else if (table === 'route_stops') {
             l1.innerText = "Stop Description (e.g. Stop 1: Campus Main Gate)";
@@ -321,23 +378,25 @@
         let val3 = document.getElementById('inputField3').value.trim();
         let msg = document.getElementById('saveMsg');
 
-        if (!val1 || (table === 'students' && (!val2 || !val3)) || (table === 'staffs' && (!val2 || !val3)) || (table === 'drivers' && !val3) || (table === 'route_stops' && !val2) || (table === 'quick_links' && !val2)) {
+        if (!val1 || (table === 'transport_department' && !val2) || (table === 'students' && (!val2 || !val3)) || (table === 'staffs' && (!val2 || !val3)) || (table === 'drivers' && (!val2 || !val3)) || (table === 'route_stops' && !val2) || (table === 'quick_links' && !val2)) {
             msg.style.color = '#f87171';
             msg.innerText = "Please fill out all required fields!";
             return;
         }
 
         let payload;
-        if (table === 'drivers') {
-            payload = { name: val1, assigned_bus_id: val3 };
+        if (table === 'transport_department') {
+            payload = { department_role: val1, phone_number: val2, contact_person: val3 || 'In-Charge' };
+        } else if (table === 'drivers') {
+            payload = { name: val1, pin: val2, bus_id: val3.toLowerCase() };
         } else if (table === 'route_stops') {
-            payload = { stop_name: val1, bus_id: val2 };
+            payload = { stop_name: val1, bus_id: val2.toLowerCase() };
         } else if (table === 'notifications') {
-            payload = { message: val1 };
+            payload = { message: val1, title: 'Transport Admin Update' };
         } else if (table === 'quick_links') {
             payload = { title: val1, url: val2 };
         } else {
-            payload = { name: val1, roll_number: val2, assigned_bus_id: val3 };
+            payload = { name: val1, roll_number: val2, assigned_bus_id: val3.toLowerCase() };
         }
 
         try {
@@ -368,6 +427,69 @@
         } catch (e) {
             msg.style.color = '#f87171';
             msg.innerText = "Network connection failed.";
+        }
+    }
+
+    async function loadEmergencyAlerts() {
+        let sosListEl = document.getElementById('sosAlertsList');
+        try {
+            let res = await fetch(`${SUPABASE_URL}/rest/v1/emergency_alerts?order=created_at.desc&limit=5`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+
+            if (res.ok) {
+                let alerts = await res.json();
+                sosListEl.innerHTML = '';
+
+                if (!Array.isArray(alerts) || alerts.length === 0) {
+                    sosListEl.innerHTML = '<li style="color: #4ade80; border-left: 3px solid #22c55e;">✅ All Clear: No active SOS or breakdown reports.</li>';
+                    return;
+                }
+
+                alerts.forEach(item => {
+                    let li = document.createElement('li');
+                    li.className = 'sos-item';
+                    let time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    let isResolved = item.status === 'RESOLVED';
+
+                    li.innerHTML = `
+                        <div>
+                            <strong style="color: #f87171;">[BUS ${item.bus_id ? item.bus_id.toUpperCase() : 'UNKNOWN'}]</strong> 
+                            <span>${item.emergency_type}</span>
+                            <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">
+                                Driver: <b>${item.driver_name || 'N/A'}</b> • ${time} • 
+                                <a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" style="color: #38bdf8; text-decoration: underline;">View Live GPS</a>
+                            </div>
+                        </div>
+                        <div>
+                            ${isResolved ? '<span style="color: #4ade80; font-size: 11px; font-weight: bold;">RESOLVED</span>' : `<button class="btn-sm-resolve" onclick="resolveEmergency(${item.id})">Mark Resolved</button>`}
+                        </div>
+                    `;
+                    sosListEl.appendChild(li);
+                });
+            }
+        } catch (e) {
+            sosListEl.innerHTML = '<li>Unable to fetch SOS alerts.</li>';
+        }
+    }
+
+    async function resolveEmergency(alertId) {
+        try {
+            let res = await fetch(`${SUPABASE_URL}/rest/v1/emergency_alerts?id=eq.${alertId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ status: 'RESOLVED' })
+            });
+
+            if (res.ok) {
+                loadEmergencyAlerts();
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 
