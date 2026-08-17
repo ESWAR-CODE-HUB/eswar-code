@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SRM Live Bus Tracker</title>
+
+    <!-- iOS Web App / PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SRM Bus">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Floating Top Bar */
+        .top-bar {
+            position: absolute;
+            top: env(safe-area-inset-top, 14px);
+            left: 14px;
+            right: 14px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 10px 14px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+            align-items: center;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .select-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        /* Floating Controls Bottom-Right */
+        .controls {
+            position: absolute;
+            bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
+            right: 16px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-action {
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-lock {
+            background: #0284c7;
+            color: white;
+        }
+
+        .btn-unlock {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            position: absolute;
+            bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
+            left: 16px;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* Custom Bus Pin Marker */
+        .bus-pin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            background: #facc15;
+            color: #000;
+            font-weight: 800;
+            font-size: 13px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            border: 2px solid #000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .bus-pin span {
+            transform: rotate(45deg);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Floating Bus Selector -->
+    <div class="top-bar">
+        <span style="font-size: 18px;">🚌</span>
+        <div class="select-wrapper">
+            <select id="busSelect" onchange="onBusChanged()">
+                <!-- Populated dynamically v1 to v35 -->
+            </select>
+        </div>
+    </div>
+
+    <!-- Status Badge -->
+    <div class="status-badge">
+        <div class="pulse-dot" id="statusDot"></div>
+        <span id="statusText">Connecting live GPS...</span>
+    </div>
+
+    <!-- Lock / Recenter Button -->
+    <div class="controls">
+        <button id="btnLock" class="btn-action btn-lock" onclick="toggleLock()">
+            🔒 Locked to Bus
+        </button>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const SUPABASE_URL = "https://wsuicmqnpyqwzjaxhhzs.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdWljbXFucHlxd3pqYXhoaHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMDQwMzksImV4cCI6MjEwMTc4MDAzOX0.zAaBH1vEQ_4KlVDfDOnc1dvgPXPrFV46GSDv3Gn1Qxw";
+
+        let map, busMarker;
+        let selectedBus = "v1";
+        let isLocked = true;
+        let pollTimer = null;
+
+        // 1. Populate Bus Dropdown (v1 to v35)
+        const busSelectEl = document.getElementById('busSelect');
+        for (let i = 1; i <= 35; i++) {
+            let opt = document.createElement('option');
+            opt.value = `v${i}`;
+            opt.textContent = `Bus V-${i}`;
+            busSelectEl.appendChild(opt);
+        }
+
+        // Check for URL query param (e.g. tracker.html?bus=v20)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('bus')) {
+            selectedBus = urlParams.get('bus').toLowerCase();
+            busSelectEl.value = selectedBus;
+        }
+
+        // 2. Initialize Leaflet Map with Daylight Positron Tiles
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([16.5062, 80.6480], 15);
+
+            // Bright CartoDB Positron daylight tile layer
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                subdomains: 'abcd'
+            }).addTo(map);
+
+            // Detect user drag to unlock map
+            map.on('dragstart', () => {
+                isLocked = false;
+                updateLockButton();
+            });
+
+            startLivePolling();
+        }
+
+        // 3. Custom Pin Icon
+        function createBusIcon(busLabel) {
+            return L.divIcon({
+                className: 'custom-bus-marker',
+                html: `<div class="bus-pin"><span>${busLabel.toUpperCase()}</span></div>`,
+                iconSize: [38, 38],
+                iconAnchor: [19, 38]
+            });
+        }
+
+        // 4. Fetch Live Bus Location from Supabase
+        async function fetchBusLocation() {
+            let statusDot = document.getElementById('statusDot');
+            let statusText = document.getElementById('statusText');
+
+            try {
+                let response = await fetch(`${SUPABASE_URL}/rest/v1/locations?bus_id=eq.${selectedBus}&select=latitude,longitude,updated_at&limit=1`, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+
+                if (response.ok) {
+                    let data = await response.json();
+                    if (data && data.length > 0) {
+                        let lat = parseFloat(data[0].latitude);
+                        let lng = parseFloat(data[0].longitude);
+
+                        statusDot.style.background = '#22c55e';
+                        statusText.textContent = `Bus ${selectedBus.toUpperCase()} • Live`;
+
+                        updateMarker(lat, lng);
+                    } else {
+                        statusDot.style.background = '#eab308';
+                        statusText.textContent = `Bus ${selectedBus.toUpperCase()} • Offline`;
+                    }
+                }
+            } catch (err) {
+                statusDot.style.background = '#ef4444';
+                statusText.textContent = 'Connection Error';
+            }
+        }
+
+        // 5. Update Marker on Map
+        function updateMarker(lat, lng) {
+            let latLng = [lat, lng];
+
+            if (!busMarker) {
+                busMarker = L.marker(latLng, { icon: createBusIcon(selectedBus) }).addTo(map);
+                busMarker.bindPopup(`<b>Bus ${selectedBus.toUpperCase()}</b><br>Live GPS Active`);
+                map.setView(latLng, 16);
+            } else {
+                busMarker.setLatLng(latLng);
+                busMarker.setIcon(createBusIcon(selectedBus));
+            }
+
+            if (isLocked) {
+                map.panTo(latLng, { animate: true, duration: 0.8 });
+            }
+        }
+
+        // 6. Polling Loop
+        function startLivePolling() {
+            if (pollTimer) clearInterval(pollTimer);
+            fetchBusLocation();
+            pollTimer = setInterval(fetchBusLocation, 1500); // 1.5-second live loop
+        }
+
+        function onBusChanged() {
+            selectedBus = busSelectEl.value;
+            isLocked = true;
+            updateLockButton();
+            if (busMarker) {
+                map.removeLayer(busMarker);
+                busMarker = null;
+            }
+            fetchBusLocation();
+        }
+
+        function toggleLock() {
+            isLocked = true;
+            updateLockButton();
+            if (busMarker) {
+                map.panTo(busMarker.getLatLng(), { animate: true });
+            }
+        }
+
+        function updateLockButton() {
+            let btn = document.getElementById('btnLock');
+            if (isLocked) {
+                btn.className = 'btn-action btn-lock';
+                btn.innerHTML = '🔒 Locked to Bus';
+            } else {
+                btn.className = 'btn-action btn-unlock';
+                btn.innerHTML = '🔓 Unlocked (Re-center)';
+            }
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
