@@ -574,15 +574,40 @@
             }
         }
 
-        // Audio Broadcast Setup
-        function setupAudioPlayer() {
-            document.getElementById('audioBusTitle').textContent = selectedBus.toUpperCase();
-            let statusText = document.getElementById('audioStatusText');
-            let player = document.getElementById('busAudioPlayer');
+        // Fetch and Play Live Bus Audio
+async function setupAudioPlayer() {
+    document.getElementById('audioBusTitle').textContent = selectedBus.toUpperCase();
+    let statusText = document.getElementById('audioStatusText');
+    let player = document.getElementById('busAudioPlayer');
 
-            // Example audio broadcast endpoint or storage channel
-            statusText.textContent = `Listening to Bus ${selectedBus.toUpperCase()} stream...`;
+    statusText.textContent = `Checking for announcements on Bus ${selectedBus.toUpperCase()}...`;
+
+    try {
+        // Replace 'driver_voice_notes' with your exact table name if different
+        let response = await fetch(`${SUPABASE_URL}/rest/v1/driver_voice_notes?bus_id=eq.${selectedBus}&order=created_at.desc&limit=1`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
+
+        if (response.ok) {
+            let data = await response.json();
+            if (data && data.length > 0 && data[0].audio_url) {
+                statusText.innerHTML = `📢 Latest Voice Note (${data[0].duration_text || 'Recent'})`;
+                player.src = data[0].audio_url;
+                player.load();
+            } else {
+                statusText.textContent = `No active voice broadcast for Bus ${selectedBus.toUpperCase()}.`;
+                player.src = "";
+            }
+        } else {
+            statusText.textContent = "Failed to load audio stream.";
         }
+    } catch (err) {
+        statusText.textContent = "Connection error loading voice broadcast.";
+    }
+}
 
         // Student Logout Action
         function handleStudentLogout() {
