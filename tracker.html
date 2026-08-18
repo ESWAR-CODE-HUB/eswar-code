@@ -55,7 +55,7 @@
             border: 1px solid rgba(226, 232, 240, 0.8);
         }
 
-        .btn-menu {
+        .btn-menu, .btn-audio-top {
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
             border-radius: 10px;
@@ -67,6 +67,12 @@
             justify-content: center;
             color: #0f172a;
             font-weight: 700;
+        }
+
+        .btn-audio-top {
+            background: #e0f2fe;
+            border-color: #7dd3fc;
+            color: #0284c7;
         }
 
         .select-wrapper {
@@ -266,6 +272,15 @@
             color: #0284c7;
         }
 
+        .drawer-menu a.logout-link {
+            color: #ef4444;
+        }
+
+        .drawer-menu a.logout-link:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
         .drawer-menu a .icon {
             font-size: 18px;
             width: 24px;
@@ -349,6 +364,15 @@
             font-weight: 600;
             cursor: pointer;
         }
+
+        .audio-player-box {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -366,6 +390,11 @@
             <li>
                 <a href="#" class="active" onclick="toggleDrawer(false)">
                     <span class="icon">🚌</span> Live Bus Map
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="openModal('modalAudio'); toggleDrawer(false);">
+                    <span class="icon">🎙️</span> Bus Audio Broadcast
                 </a>
             </li>
             <li>
@@ -388,6 +417,11 @@
                     <span class="icon">🔗</span> Quick Links
                 </a>
             </li>
+            <li style="margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+                <a href="#" class="logout-link" onclick="handleStudentLogout()">
+                    <span class="icon">🚪</span> Logout Session
+                </a>
+            </li>
         </ul>
         <div class="drawer-footer">
             SRM Transport Dept • v1.0
@@ -402,6 +436,8 @@
                 <!-- Populated dynamically v1 to v35 -->
             </select>
         </div>
+        <!-- Direct Top Bar Audio Button -->
+        <button class="btn-audio-top" title="Listen to Live Driver Voice" onclick="openModal('modalAudio')">🎙️</button>
     </div>
 
     <!-- Status Badge -->
@@ -420,7 +456,28 @@
     <!-- Map Container -->
     <div id="map"></div>
 
-    <!-- Route Stops Modal -->
+    <!-- 1. Audio Receiver Modal -->
+    <div id="modalAudio" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>🎙️ Live Voice Broadcast (<span id="audioBusTitle">BUS</span>)</h4>
+                <button class="btn-modal-close" onclick="closeModal('modalAudio')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>Listen to real-time voice announcements transmitted directly from the bus driver:</p>
+                <div class="audio-player-box">
+                    <div style="font-size: 32px; margin-bottom: 8px;">📢</div>
+                    <div id="audioStatusText" style="font-weight: 700; color: #0284c7; margin-bottom: 12px;">Connecting to Live Channel...</div>
+                    <audio id="busAudioPlayer" controls style="width: 100%; border-radius: 8px; outline: none;"></audio>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: 12px;">
+                    ℹ️ Audio streams only when the driver is holding the voice broadcast button in the Driver App.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Route Stops Modal -->
     <div id="modalRoutes" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -433,7 +490,7 @@
         </div>
     </div>
 
-    <!-- Announcements Modal -->
+    <!-- 3. Announcements Modal -->
     <div id="modalNotices" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -446,7 +503,7 @@
         </div>
     </div>
 
-    <!-- Emergency Help Modal -->
+    <!-- 4. Emergency Help Modal -->
     <div id="modalEmergency" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -466,7 +523,7 @@
         </div>
     </div>
 
-    <!-- Quick Links Modal -->
+    <!-- 5. Quick Links Modal -->
     <div id="modalLinks" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -505,10 +562,36 @@
             document.getElementById(id).classList.add('active');
             if (id === 'modalRoutes') fetchRouteStops();
             if (id === 'modalNotices') fetchAnnouncements();
+            if (id === 'modalAudio') setupAudioPlayer();
         }
 
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
+            if (id === 'modalAudio') {
+                let player = document.getElementById('busAudioPlayer');
+                player.pause();
+                player.src = "";
+            }
+        }
+
+        // Audio Broadcast Setup
+        function setupAudioPlayer() {
+            document.getElementById('audioBusTitle').textContent = selectedBus.toUpperCase();
+            let statusText = document.getElementById('audioStatusText');
+            let player = document.getElementById('busAudioPlayer');
+
+            // Example audio broadcast endpoint or storage channel
+            statusText.textContent = `Listening to Bus ${selectedBus.toUpperCase()} stream...`;
+        }
+
+        // Student Logout Action
+        function handleStudentLogout() {
+            if (confirm("Are you sure you want to log out?")) {
+                localStorage.clear();
+                sessionStorage.clear();
+                alert("Logged out successfully.");
+                window.location.reload();
+            }
         }
 
         // Populate Bus Dropdown (v1 to v35)
